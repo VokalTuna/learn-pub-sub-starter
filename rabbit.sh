@@ -8,7 +8,7 @@ start_or_run () {
         podman start peril_rabbitmq
     else
         echo "Peril RabbitMQ container not found, creating a new one..."
-        podman run -d --name peril_rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3.13-management
+        podman run -d --name peril_rabbitmq -p 127.0.0.1:5672:5672 -p 127.0.0.1:15672:15672 rabbitmq:3.13-management
     fi
 }
 
