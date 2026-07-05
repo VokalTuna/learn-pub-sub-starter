@@ -24,6 +24,17 @@ func main() {
 		log.Fatalf("Could not create channel: %v", err)
 	}
 
+	_, _, err = pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		"game_logs.*",
+		pubsub.SimpleQueueDurable,
+	)
+	if err != nil {
+		log.Fatalf("Could not create queue: %v", err)
+	}
+
 	gamelogic.PrintServerHelp()
 
 	for {
