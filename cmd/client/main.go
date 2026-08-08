@@ -52,12 +52,21 @@ func main() {
 		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, userName),
 		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, "*"),
 		pubsub.SimpleQueueTransient,
-		handlerMove(gs),
+		handlerMove(gs, publishCh),
 	)
 
 	if err != nil {
 		log.Fatalf("could not subscribe to army moves: %v", err)
 	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
+		pubsub.SimpleQueueDurable,
+		handlerWar(gs),
+	)
 
 	for {
 		words := gamelogic.GetInput()

@@ -3,7 +3,9 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -14,13 +16,21 @@ const (
 	SimpleQueueTransient
 )
 
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
+)
+
 func SubscribeJSON[T any](
 	conn *amqp.Connection,
 	exchange,
 	queueName,
 	key string,
 	queuType SimpleQueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queuType)
 	if err != nil {
@@ -52,8 +62,18 @@ func SubscribeJSON[T any](
 			if err != nil {
 				continue
 			}
-			handler(target)
-			msg.Ack(false)
+			ackValue := handler(target)
+			switch ackValue {
+			case Ack:
+				msg.Ack(false)
+				log.Println("Ack")
+			case NackRequeue:
+				msg.Nack(false, true)
+				log.Println("NackRequeue")
+			case NackDiscard:
+				msg.Nack(false, false)
+				log.Println("NackDiscard")
+			}
 		}
 	}()
 	return nil
@@ -76,7 +96,9 @@ func DeclareAndBind(
 		queueType != SimpleQueueDurable,
 		queueType != SimpleQueueDurable,
 		false,
-		nil,
+		amqp.Table{
+			"x-dead-letter-exchange": routing.ExchangePerilDlx,
+		},
 	)
 	if err != nil {
 		return &amqp.Channel{}, amqp.Queue{}, err
