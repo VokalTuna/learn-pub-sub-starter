@@ -65,7 +65,7 @@ func main() {
 		routing.WarRecognitionsPrefix,
 		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
 		pubsub.SimpleQueueDurable,
-		handlerWar(gs),
+		handlerWar(gs, publishCh),
 	)
 
 	for {

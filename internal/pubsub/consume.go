@@ -3,7 +3,6 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -24,13 +23,14 @@ const (
 	NackDiscard
 )
 
-func SubscribeJSON[T any](
+func subscribe[T any](
 	conn *amqp.Connection,
 	exchange,
 	queueName,
 	key string,
-	queuType SimpleQueueType,
+	simpleQueueType SimpleQueueType,
 	handler func(T) AckType,
+	unmarshaller func([]byte) (T, error),
 ) error {
 	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queuType)
 	if err != nil {
@@ -49,12 +49,6 @@ func SubscribeJSON[T any](
 		return fmt.Errorf("Could not consume message: %v", err)
 	}
 
-	unmarshaller := func(data []byte) (T, error) {
-		var target T
-		err := json.Unmarshal(data, &target)
-		return target, err
-	}
-
 	go func() {
 		defer ch.Close()
 		for msg := range msgs {
@@ -66,17 +60,30 @@ func SubscribeJSON[T any](
 			switch ackValue {
 			case Ack:
 				msg.Ack(false)
-				log.Println("Ack")
 			case NackRequeue:
 				msg.Nack(false, true)
-				log.Println("NackRequeue")
 			case NackDiscard:
 				msg.Nack(false, false)
-				log.Println("NackDiscard")
 			}
 		}
 	}()
 	return nil
+}
+
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queuType SimpleQueueType,
+	handler func(T) AckType,
+) error {
+	unmarshaller := func(data []byte) (T, error) {
+		var target T
+		err := json.Unmarshal(data, &target)
+		return target, err
+	}
+	subscribe(conn, exchange, queueName, key, queuType, handler, unmarshaller)
 }
 
 func DeclareAndBind(
