@@ -1,6 +1,8 @@
 package pubsub
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 
@@ -32,7 +34,7 @@ func subscribe[T any](
 	handler func(T) AckType,
 	unmarshaller func([]byte) (T, error),
 ) error {
-	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queuType)
+	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, simpleQueueType)
 	if err != nil {
 		return fmt.Errorf("Could not declare and bind queue: %v", err)
 	}
@@ -83,7 +85,33 @@ func SubscribeJSON[T any](
 		err := json.Unmarshal(data, &target)
 		return target, err
 	}
-	subscribe(conn, exchange, queueName, key, queuType, handler, unmarshaller)
+	return subscribe[T](
+		conn,
+		exchange,
+		queueName,
+		key,
+		queuType,
+		handler,
+		unmarshaller,
+	)
+}
+
+func SubscribeGob[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	simpleQueueType SimpleQueueType,
+	handler func(T) AckType,
+) error {
+	unmarshaller := func(data []byte) (T, error) {
+		buffer := bytes.NewBuffer(data)
+		decoder := gob.NewDecoder(buffer)
+		var target T
+		err := decoder.Decode(&target)
+		return target, err
+	}
+	return subscribe[T](conn, exchange, queueName, key, simpleQueueType, handler, unmarshaller)
 }
 
 func DeclareAndBind(

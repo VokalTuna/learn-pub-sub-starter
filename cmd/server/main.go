@@ -24,12 +24,13 @@ func main() {
 		log.Fatalf("Could not create channel: %v", err)
 	}
 
-	_, _, err = pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
-		"game_logs.*",
+		routing.GameLogSlug+".*",
 		pubsub.SimpleQueueDurable,
+		handlerlogs(),
 	)
 	if err != nil {
 		log.Fatalf("Could not create queue: %v", err)
